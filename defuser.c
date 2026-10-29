@@ -135,11 +135,43 @@ int solve_phase_4(uint64_t challenge, char *out, size_t cap) {
     return write_answer(out, cap, values, count);
 }
 
+static const uint32_t p5_values[12] = {
+    0x015AU, 0x0716U, 0x0B66U, 0x0925U,
+    0x060FU, 0x085FU, 0x0252U, 0x050AU,
+    0x0A7DU, 0x0335U, 0x0477U, 0x0020U
+};
+
+static const uint32_t p5_addends[12] = {
+    0x4B3EU, 0xF9B6U, 0x096BU, 0x6F29U,
+    0xFD2CU, 0x0DD3U, 0xBF9EU, 0x5933U,
+    0xC7D4U, 0xF070U, 0xB942U, 0x52C6U
+};
+
 int solve_phase_5(uint64_t challenge, char *out, size_t cap) {
     uint32_t values[MAX_FIELDS] = {0};
     size_t count = 0;
-    (void)challenge;
-    // TODO: 根据 phase_05 的汇编，用 challenge 算出口令中的各个整数，依次存入 values，并把 count 改为整数个数。
+
+    uint32_t start = (uint32_t)challenge & 7U;
+    uint32_t extra_steps = (uint32_t)(challenge >> 3U) & 3U;
+
+    uint32_t acc =
+        (uint32_t)(challenge >> 6U) ^
+        (uint32_t)(challenge >> 32U) ^
+        0x5C10U;
+
+    uint32_t last_value = 0U;
+
+    for (uint32_t i = 0U; i <= extra_steps; ++i) {
+        uint32_t pos = start + i;
+        acc = 5U * (acc + p5_addends[pos]);
+        acc = acc ^ p5_values[pos];
+        last_value = p5_values[pos];
+    }
+
+    values[0] = acc;
+    values[1] = last_value;
+    count = 2U;
+
     return write_answer(out, cap, values, count);
 }
 
