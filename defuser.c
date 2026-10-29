@@ -186,7 +186,7 @@ static uint32_t apply_p6(uint32_t index, uint32_t x) {
             return ((x << 3U) | (x >> 29U)) ^ 0x2EB1U;
 
         case 2:
-            return ((x >> 2U) ^ x) + 0xF7D4U;
+            return (x ^ 0xF197U) + 8U * x;
 
         case 4:
             return (x >> 3U) | (x << 29U);
@@ -223,12 +223,51 @@ int solve_phase_6(uint64_t challenge, char *out, size_t cap) {
     return write_answer(out, cap, values, count);
 }
 
-int solve_secret(uint64_t challenge, uint64_t context, char *out, size_t cap) {
-    (void)challenge;
-    (void)context;
-    (void)out;
-    (void)cap;
-    // TODO（选做）: 根据 secret_gate、secret_copy 和 secret_phase 的汇编构造完整的第七行，写入 out 后返回 0。
-    // 第七行不一定只有整数，可以直接用 snprintf 写入；还没完成时保持返回 1，测试会显示 not attempted。
-    return 1;
+int solve_secret(
+    uint64_t challenge,
+    uint64_t context,
+    char *out,
+    size_t cap
+) {
+    uint32_t challenge_fold =
+        (uint32_t)challenge ^
+        (uint32_t)(challenge >> 32);
+
+    uint32_t context_fold =
+        (uint32_t)context ^
+        (uint32_t)(context >> 32);
+
+    uint32_t selector = (uint32_t)context & 3U;
+    uint32_t context_mid = (uint32_t)(context >> 16);
+
+    uint32_t mix_input = challenge_fold ^ context_fold;
+
+    uint32_t rotated = (mix_input << 5U) | (mix_input >> 27U);
+    uint32_t secret_value = (rotated + 0x3F8FU) ^ 0x3988U;
+
+    uint32_t first = selector;
+
+    uint32_t second =
+        secret_value ^
+        (selector * 0x3F8FU) ^
+        context_mid;
+
+    uint32_t third =
+        second ^
+        (context_fold
+         + selector
+         + 0x3988U
+         + (challenge_fold >> 5U));
+
+    int written = snprintf(
+    out,
+    cap,
+    "00000000000000000000000000000000OPEN%"
+    PRIu32 " %" PRIu32 " %" PRIu32,
+    first,
+    second,
+    third
+    );
+
+    return written < 0 || (size_t)written >= cap;
 }
